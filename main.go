@@ -2,11 +2,14 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/apex/log"
@@ -42,6 +45,46 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
 }
 
 func handlePost(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+
+	type Input struct {
+		URL string `json:"document_url"`
+	}
+
+	var input Input
+
+	ctx := log.WithFields(log.Fields{
+		"method": r.Method,
+		"url":    r.URL.String(),
+		"input":  input,
+		"route":  "handlePost",
+	})
+
+	err := decoder.Decode(&input)
+	if err != nil {
+		ctx.WithError(err).Fatal("failed to read input")
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Check it's a valid URL
+	u, err := url.ParseRequestURI(input.URL)
+	if err != nil {
+		ctx.WithError(err).Fatal("not a valid URL")
+		http.Error(w, "Not a valid URL", http.StatusBadRequest)
+		return
+	}
+
+	// Make sure the document_url is from our bucket
+	if u.Host != "s3-ap-southeast-1.amazonaws.com" &&
+		strings.HasPrefix(u.Path, "/dev-media-unee-t/") {
+		http.Error(w, "Source must be from our S3", 400)
+		return
+	}
+
+	fmt.Fprintf(w, "here")
+	return
+
 	var out []byte
 	path, err := exec.LookPath("./prince/bin/prince")
 	if err == nil {
