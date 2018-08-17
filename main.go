@@ -33,14 +33,17 @@ func main() {
 func handleIndex(w http.ResponseWriter, r *http.Request) {
 	var out []byte
 	path, err := exec.LookPath("./prince/bin/prince")
-	if err == nil {
-		out, err = exec.Command(path, "--version").CombinedOutput()
-		log.Infof("out: %s", out)
-		if err != nil {
-			log.WithError(err).Warnf("hello failed: %s", out)
-		}
+	if err != nil {
+		log.WithError(err).Error("no prince binary found")
+		http.Error(w, "Error finding the prince binary", http.StatusInternalServerError)
+		return
 	}
-	log.Infof("out here: %s", out)
+	out, err = exec.Command(path, "--version").CombinedOutput()
+	if err != nil {
+		log.WithError(err).Errorf("prince failed: %s", out)
+		http.Error(w, "Prince failed", http.StatusInternalServerError)
+		return
+	}
 	fmt.Fprintf(w, string(out))
 }
 
@@ -109,12 +112,16 @@ func handlePost(w http.ResponseWriter, r *http.Request) {
 
 	var out []byte
 	path, err := exec.LookPath("./prince/bin/prince")
-	if err == nil {
-		out, err = exec.Command(path, "/tmp/doc.html", "-o", "/tmp/out.pdf").CombinedOutput()
-		log.Infof("out: %s", out)
-		if err != nil {
-			log.WithError(err).Warnf("hello failed: %s", out)
-		}
+	if err != nil {
+		ctx.WithError(err).Fatal("not a valid URL")
+		http.Error(w, "Not a valid URL", http.StatusBadRequest)
+		return
+	}
+
+	out, err = exec.Command(path, "/tmp/doc.html", "-o", "/tmp/out.pdf").CombinedOutput()
+	log.Infof("out: %s", out)
+	if err != nil {
+		log.WithError(err).Warnf("hello failed: %s", out)
 	}
 
 	outputpdf, err := ioutil.ReadFile("/tmp/out.pdf")
@@ -149,9 +156,13 @@ func handlePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	pdfurl := fmt.Sprintf("https://s3-ap-southeast-1.amazonaws.com/dev-media-unee-t/%s", pdffilename)
+
+	log.Infof("Produced %s", pdfurl)
+
 	response.JSON(w, struct {
 		PDF string
 	}{
-		fmt.Sprintf("https://s3-ap-southeast-1.amazonaws.com/dev-media-unee-t/%s", pdffilename),
+		pdfurl,
 	})
 }

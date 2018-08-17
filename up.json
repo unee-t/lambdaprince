@@ -1,5 +1,6 @@
 {
   "name": "prince",
+  "cors": { "enable": true },
   "profile": "uneet-dev",
   "stages": {
     "production": {
