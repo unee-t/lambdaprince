@@ -21,7 +21,7 @@ func main() {
 
 func handleIndex(w http.ResponseWriter, r *http.Request) {
 	var out []byte
-	path, err := exec.LookPath("./static/hello")
+	path, err := exec.LookPath("./prince/bin/prince")
 	if err == nil {
 		out, err = exec.Command(path).CombinedOutput()
 		log.Infof("out: %s", out)
