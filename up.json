@@ -21,7 +21,14 @@
         "Action": [
           "ssm:GetParameter"
         ]
-      }
+      },
+	  {
+      "Effect": "Allow",
+      "Action": [
+        "s3:*"
+      ],
+      "Resource": ["arn:aws:s3:::dev-media-unee-t/*"]
+    }
     ]
   },
   "actions": [
