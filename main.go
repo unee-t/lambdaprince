@@ -78,17 +78,39 @@ func handlePost(w http.ResponseWriter, r *http.Request) {
 	// Make sure the document_url is from our bucket
 	if u.Host != "s3-ap-southeast-1.amazonaws.com" &&
 		strings.HasPrefix(u.Path, "/dev-media-unee-t/") {
+		ctx.Fatal("bad source")
 		http.Error(w, "Source must be from our S3", 400)
 		return
 	}
 
-	fmt.Fprintf(w, "here")
-	return
+	resp, err := http.Get(input.URL)
+
+	log.Infof("Fetched content type: %s", resp.Header.Get("Content-Type"))
+
+	if err != nil {
+		ctx.WithError(err).Fatalf("failed to fetch")
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	defer resp.Body.Close()
+	contents, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		ctx.WithError(err).Fatalf("failed to read body")
+		http.Error(w, err.Error(), 500)
+		return
+	}
+
+	err = ioutil.WriteFile("/tmp/doc.html", contents, 0644)
+	if err != nil {
+		ctx.WithError(err).Fatalf("failed to write fetched document_url")
+		http.Error(w, err.Error(), 500)
+		return
+	}
 
 	var out []byte
 	path, err := exec.LookPath("./prince/bin/prince")
 	if err == nil {
-		out, err = exec.Command(path, "doc.html", "-o", "/tmp/out.pdf").CombinedOutput()
+		out, err = exec.Command(path, "/tmp/doc.html", "-o", "/tmp/out.pdf").CombinedOutput()
 		log.Infof("out: %s", out)
 		if err != nil {
 			log.WithError(err).Warnf("hello failed: %s", out)
