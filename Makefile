@@ -1,0 +1,2 @@
+deploy:
+	up deploy production
