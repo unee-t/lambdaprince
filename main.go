@@ -45,14 +45,14 @@ func handlePost(w http.ResponseWriter, r *http.Request) {
 	var out []byte
 	path, err := exec.LookPath("./prince/bin/prince")
 	if err == nil {
-		out, err = exec.Command(path, "doc.html", "-o", "out.pdf").CombinedOutput()
+		out, err = exec.Command(path, "doc.html", "-o", "/tmp/out.pdf").CombinedOutput()
 		log.Infof("out: %s", out)
 		if err != nil {
 			log.WithError(err).Warnf("hello failed: %s", out)
 		}
 	}
 
-	outputpdf, err := ioutil.ReadFile("out.pdf")
+	outputpdf, err := ioutil.ReadFile("/tmp/out.pdf")
 	if err != nil {
 		log.WithError(err).Fatal("failed to read output")
 		http.Error(w, err.Error(), 500)
@@ -67,7 +67,7 @@ func handlePost(w http.ResponseWriter, r *http.Request) {
 	}
 	svc := s3.New(cfg)
 
-	pdffilename := time.Now().Format("2006-01-02") + "/out.pdf"
+	pdffilename := time.Now().Format("2006-01-02") + fmt.Sprintf("/%d.pdf", time.Now().Unix())
 	putparams := &s3.PutObjectInput{
 		Bucket:      aws.String("dev-media-unee-t"),
 		Body:        bytes.NewReader(outputpdf),
@@ -78,6 +78,11 @@ func handlePost(w http.ResponseWriter, r *http.Request) {
 
 	req := svc.PutObjectRequest(putparams)
 	_, err = req.Send()
+	if err != nil {
+		log.WithError(err).Fatal("failed to upload to s3")
+		http.Error(w, err.Error(), 500)
+		return
+	}
 
 	response.JSON(w, struct {
 		PDF string
