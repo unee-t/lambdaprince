@@ -18,7 +18,10 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/gorilla/mux"
 	"github.com/tj/go/http/response"
+	"github.com/unee-t/env"
 )
+
+var e env.Env
 
 func main() {
 	addr := ":" + os.Getenv("PORT")
@@ -70,6 +73,20 @@ func handlePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	cfg, err := external.LoadDefaultAWSConfig(external.WithSharedConfigProfile("uneet-dev"))
+	if err != nil {
+		log.WithError(err).Fatal("failed to get config")
+		http.Error(w, err.Error(), 500)
+		return
+	}
+
+	e, err = env.New(cfg)
+	if err != nil {
+		log.WithError(err).Warn("error getting unee-t env")
+		http.Error(w, err.Error(), 500)
+		return
+	}
+
 	// Check it's a valid URL
 	u, err := url.ParseRequestURI(input.URL)
 	if err != nil {
@@ -78,17 +95,28 @@ func handlePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Infof("Path: %s", u.Path)
+
 	// Make sure the document_url is from our bucket
-	if u.Host != "s3-ap-southeast-1.amazonaws.com" &&
-		strings.HasPrefix(u.Path, "/dev-media-unee-t/") {
-		ctx.Fatal("bad source")
-		http.Error(w, "Source must be from our S3", 400)
+	if u.Host != "s3-ap-southeast-1.amazonaws.com" {
+		ctx.Error("bad host")
+		http.Error(w, "Host must be from our S3", 400)
+		return
+	}
+
+	if !strings.HasPrefix(u.Path, fmt.Sprintf("/%s/", e.Bucket())) {
+		ctx.Error("bad path")
+		http.Error(w, "Path must be from our S3", 400)
 		return
 	}
 
 	resp, err := http.Get(input.URL)
 
-	log.Infof("Fetched content type: %s", resp.Header.Get("Content-Type"))
+	if !strings.HasPrefix(resp.Header.Get("Content-Type"), "text/html") {
+		ctx.Errorf("input %s != %s", resp.Header.Get("Content-Type"), "text/html")
+		http.Error(w, "Input is not text/html", 400)
+		return
+	}
 
 	if err != nil {
 		ctx.WithError(err).Fatalf("failed to fetch")
@@ -119,7 +147,6 @@ func handlePost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	out, err = exec.Command(path, "/tmp/doc.html", "-o", "/tmp/out.pdf").CombinedOutput()
-	log.Infof("out: %s", out)
 	if err != nil {
 		log.WithError(err).Warnf("hello failed: %s", out)
 	}
@@ -131,17 +158,11 @@ func handlePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cfg, err := external.LoadDefaultAWSConfig(external.WithSharedConfigProfile("uneet-dev"))
-	if err != nil {
-		log.WithError(err).Fatal("failed to get config")
-		http.Error(w, err.Error(), 500)
-		return
-	}
 	svc := s3.New(cfg)
 
 	pdffilename := time.Now().Format("2006-01-02") + fmt.Sprintf("/%d.pdf", time.Now().Unix())
 	putparams := &s3.PutObjectInput{
-		Bucket:      aws.String("dev-media-unee-t"),
+		Bucket:      aws.String(e.Bucket()),
 		Body:        bytes.NewReader(outputpdf),
 		Key:         aws.String(pdffilename),
 		ACL:         s3.ObjectCannedACLPublicRead,

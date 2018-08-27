@@ -1,6 +1,8 @@
 {
   "name": "prince",
-  "cors": { "enable": true },
+  "cors": {
+    "enable": true
+  },
   "profile": "uneet-dev",
   "stages": {
     "production": {
@@ -23,13 +25,15 @@
           "ssm:GetParameter"
         ]
       },
-	  {
-      "Effect": "Allow",
-      "Action": [
-        "s3:*"
-      ],
-      "Resource": ["arn:aws:s3:::dev-media-unee-t/*"]
-    }
+      {
+        "Effect": "Allow",
+        "Action": [
+          "s3:*"
+        ],
+        "Resource": [
+          "arn:aws:s3:::dev-media-unee-t/*"
+        ]
+      }
     ]
   },
   "actions": [
