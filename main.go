@@ -177,7 +177,7 @@ func handlePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pdfurl := fmt.Sprintf("https://s3-ap-southeast-1.amazonaws.com/dev-media-unee-t/%s", pdffilename)
+	pdfurl := fmt.Sprintf("https://s3-ap-southeast-1.amazonaws.com/%s/%s", e.Bucket(), pdffilename)
 
 	log.Infof("Produced %s", pdfurl)
 
