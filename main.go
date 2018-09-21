@@ -9,6 +9,8 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -139,14 +141,14 @@ func handlePost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var out []byte
-	path, err := exec.LookPath("./prince/bin/prince")
+	princepath, err := exec.LookPath("./prince/bin/prince")
 	if err != nil {
 		ctx.WithError(err).Fatal("not a valid URL")
 		http.Error(w, "Not a valid URL", http.StatusBadRequest)
 		return
 	}
 
-	out, err = exec.Command(path, "/tmp/doc.html", "-o", "/tmp/out.pdf").CombinedOutput()
+	out, err = exec.Command(princepath, "/tmp/doc.html", "-o", "/tmp/out.pdf").CombinedOutput()
 	if err != nil {
 		log.WithError(err).Warnf("hello failed: %s", out)
 	}
@@ -160,7 +162,8 @@ func handlePost(w http.ResponseWriter, r *http.Request) {
 
 	svc := s3.New(cfg)
 
-	pdffilename := time.Now().Format("2006-01-02") + fmt.Sprintf("/%d.pdf", time.Now().Unix())
+	basename := path.Base(u.Path)
+	pdffilename := time.Now().Format("2006-01-02") + "/" + strings.TrimSuffix(basename, filepath.Ext(basename)) + ".pdf"
 	putparams := &s3.PutObjectInput{
 		Bucket:      aws.String(e.Bucket()),
 		Body:        bytes.NewReader(outputpdf),
