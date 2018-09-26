@@ -106,7 +106,7 @@ func handlePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !strings.HasPrefix(u.Path, fmt.Sprintf("/%s/", e.Bucket())) {
+	if !strings.HasPrefix(u.Path, fmt.Sprintf("/%s/", e.Bucket("media"))) {
 		ctx.Error("bad path")
 		http.Error(w, "Path must be from our S3", 400)
 		return
@@ -165,7 +165,7 @@ func handlePost(w http.ResponseWriter, r *http.Request) {
 	basename := path.Base(u.Path)
 	pdffilename := time.Now().Format("2006-01-02") + "/" + strings.TrimSuffix(basename, filepath.Ext(basename)) + ".pdf"
 	putparams := &s3.PutObjectInput{
-		Bucket:      aws.String(e.Bucket()),
+		Bucket:      aws.String(e.Bucket("media")),
 		Body:        bytes.NewReader(outputpdf),
 		Key:         aws.String(pdffilename),
 		ACL:         s3.ObjectCannedACLPublicRead,
@@ -180,7 +180,7 @@ func handlePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pdfurl := fmt.Sprintf("https://s3-ap-southeast-1.amazonaws.com/%s/%s", e.Bucket(), pdffilename)
+	pdfurl := fmt.Sprintf("https://%s/%s", e.Udomain("media"), pdffilename)
 
 	log.Infof("Produced %s", pdfurl)
 
