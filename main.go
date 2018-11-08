@@ -100,13 +100,14 @@ func handlePost(w http.ResponseWriter, r *http.Request) {
 	log.Infof("Path: %s", u.Path)
 
 	// Make sure the document_url is from our bucket
-	if u.Host != "s3-ap-southeast-1.amazonaws.com" {
+	log.Info(u.Host[len(u.Host)-len("unee-t.com"):])
+	if u.Host[len(u.Host)-len("unee-t.com"):] != "unee-t.com" && u.Host != "s3-ap-southeast-1.amazonaws.com" {
 		ctx.Error("bad host")
 		http.Error(w, "Host must be from our S3", 400)
 		return
 	}
 
-	if !strings.HasPrefix(u.Path, fmt.Sprintf("/%s/", e.Bucket("media"))) {
+	if u.Host == "s3-ap-southeast-1.amazonaws.com" && !strings.HasPrefix(u.Path, fmt.Sprintf("/%s/", e.Bucket("media"))) {
 		ctx.Error("bad path")
 		http.Error(w, "Path must be from our S3", 400)
 		return

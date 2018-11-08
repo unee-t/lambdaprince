@@ -17,6 +17,7 @@
     "disable": true
   },
   "lambda": {
+    "memory": 1024,
     "policy": [
       {
         "Effect": "Allow",
