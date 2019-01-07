@@ -15,6 +15,8 @@ import (
 	"time"
 
 	"github.com/apex/log"
+	jsonloghandler "github.com/apex/log/handlers/json"
+	"github.com/apex/log/handlers/text"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/external"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -22,6 +24,14 @@ import (
 	"github.com/tj/go/http/response"
 	"github.com/unee-t/env"
 )
+
+func init() {
+	if os.Getenv("UP_STAGE") != "" {
+		log.SetHandler(jsonloghandler.Default)
+	} else {
+		log.SetHandler(text.Default)
+	}
+}
 
 var e env.Env
 
@@ -56,7 +66,8 @@ func handlePost(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 
 	type Input struct {
-		URL string `json:"document_url"`
+		URL  string    `json:"document_url"`
+		Date time.Time `json:"date"` // WARNING can overwrite
 	}
 
 	var input Input
@@ -165,6 +176,11 @@ func handlePost(w http.ResponseWriter, r *http.Request) {
 
 	basename := path.Base(u.Path)
 	pdffilename := time.Now().Format("2006-01-02") + "/" + strings.TrimSuffix(basename, filepath.Ext(basename)) + ".pdf"
+	if !input.Date.IsZero() {
+		log.Warnf("Overriding date to %v", input.Date)
+		pdffilename = input.Date.Format("2006-01-02") + "/" + strings.TrimSuffix(basename, filepath.Ext(basename)) + ".pdf"
+	}
+
 	putparams := &s3.PutObjectInput{
 		Bucket:      aws.String(e.Bucket("media")),
 		Body:        bytes.NewReader(outputpdf),
