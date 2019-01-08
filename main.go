@@ -108,23 +108,27 @@ func handlePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Infof("Path: %s", u.Path)
-
-	// Make sure the document_url is from our bucket
-	log.Info(u.Host[len(u.Host)-len("unee-t.com"):])
-	if u.Host[len(u.Host)-len("unee-t.com"):] != "unee-t.com" && u.Host != "s3-ap-southeast-1.amazonaws.com" {
-		ctx.Warn("bad host")
-		// http.Error(w, "Host must be from our S3", 400)
-		// return
+	log.Infof("Host: %s", u.Host)
+	switch u.Host {
+	//  Don't rewrite if URL is already from S3
+	case "prod-media-unee-t.s3.amazonaws.com":
+	case "dev-media-unee-t.s3.amazonaws.com":
+	case "demo-media-unee-t.s3.amazonaws.com":
+	// Rewrite if they are from CloudFront CDN
+	case "media.unee-t.com":
+		u.Host = "prod-media-unee-t.s3.amazonaws.com"
+	case "media.dev.unee-t.com":
+		u.Host = "dev-media-unee-t.s3.amazonaws.com"
+	case "media.demo.unee-t.com":
+		u.Host = "demo-media-unee-t.s3.amazonaws.com"
+	default:
+		ctx.Errorf("bad host: %s", u.Host)
+		http.Error(w, "Host must be from our S3", 400)
+		return
 	}
 
-	if u.Host == "s3-ap-southeast-1.amazonaws.com" && !strings.HasPrefix(u.Path, fmt.Sprintf("/%s/", e.Bucket("media"))) {
-		ctx.Warn("bad path")
-		// http.Error(w, "Path must be from our S3", 400)
-		// return
-	}
-
-	resp, err := http.Get(input.URL)
+	log.Infof("Rewrote input URL: %s to %s", input.URL, u.String())
+	resp, err := http.Get(u.String())
 
 	if !strings.HasPrefix(resp.Header.Get("Content-Type"), "text/html") {
 		ctx.Errorf("input %s != %s", resp.Header.Get("Content-Type"), "text/html")
